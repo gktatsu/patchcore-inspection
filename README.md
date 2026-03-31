@@ -145,7 +145,7 @@ allows you to log all training & test performances online to Weights-and-Biases 
 
 Finally, due to the effectiveness and efficiency of PatchCore, we also incorporate the option to use
 an ensemble of backbone networks and network featuremaps. For this, provide the list of backbones to
-use (as listed in `/src/anomaly_detection/backbones.py`) with `-b <backbone` and, given their
+use (as listed in `/src/patchcore/backbones.py`) with `-b <backbone` and, given their
 ordering, denote the layers to extract with `-le idx.<layer_name>`. An example with three different
 backbones would look something like
 
