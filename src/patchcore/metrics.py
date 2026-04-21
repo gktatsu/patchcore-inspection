@@ -7,7 +7,7 @@ def compute_imagewise_retrieval_metrics(
     anomaly_prediction_weights, anomaly_ground_truth_labels
 ):
     """
-    Computes retrieval statistics (AUROC, FPR, TPR).
+    Computes retrieval statistics (AUROC, AUPRC, F1, FPR, TPR).
 
     Args:
         anomaly_prediction_weights: [np.array or list] [N] Assignment weights
@@ -16,13 +16,33 @@ def compute_imagewise_retrieval_metrics(
         anomaly_ground_truth_labels: [np.array or list] [N] Binary labels - 1
                                     if image is an anomaly, 0 if not.
     """
-    fpr, tpr, thresholds = metrics.roc_curve(
+    fpr, tpr, roc_thresholds = metrics.roc_curve(
         anomaly_ground_truth_labels, anomaly_prediction_weights
     )
     auroc = metrics.roc_auc_score(
         anomaly_ground_truth_labels, anomaly_prediction_weights
     )
-    return {"auroc": auroc, "fpr": fpr, "tpr": tpr, "threshold": thresholds}
+
+    precision, recall, _ = metrics.precision_recall_curve(
+        anomaly_ground_truth_labels, anomaly_prediction_weights
+    )
+    auprc = metrics.auc(recall, precision)
+    F1_scores = np.divide(
+        2 * precision * recall,
+        precision + recall,
+        out=np.zeros_like(precision),
+        where=(precision + recall) != 0,
+    )
+    best_f1 = float(np.max(F1_scores))
+
+    return {
+        "auroc": auroc,
+        "fpr": fpr,
+        "tpr": tpr,
+        "threshold": roc_thresholds,
+        "auprc": auprc,
+        "f1": best_f1,
+    }
 
 
 def compute_pixelwise_retrieval_metrics(anomaly_segmentations, ground_truth_masks):
@@ -54,12 +74,14 @@ def compute_pixelwise_retrieval_metrics(anomaly_segmentations, ground_truth_mask
     precision, recall, thresholds = metrics.precision_recall_curve(
         flat_ground_truth_masks.astype(int), flat_anomaly_segmentations
     )
+    auprc = metrics.auc(recall, precision)
     F1_scores = np.divide(
         2 * precision * recall,
         precision + recall,
         out=np.zeros_like(precision),
         where=(precision + recall) != 0,
     )
+    best_f1 = float(np.max(F1_scores))
 
     optimal_threshold = thresholds[np.argmax(F1_scores)]
     predictions = (flat_anomaly_segmentations >= optimal_threshold).astype(int)
@@ -73,4 +95,6 @@ def compute_pixelwise_retrieval_metrics(anomaly_segmentations, ground_truth_mask
         "optimal_threshold": optimal_threshold,
         "optimal_fpr": fpr_optim,
         "optimal_fnr": fnr_optim,
+        "auprc": auprc,
+        "f1": best_f1,
     }

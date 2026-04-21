@@ -2,10 +2,17 @@ import contextlib
 import logging
 import os
 import sys
+import time
 
 import click
 import numpy as np
 import torch
+
+try:
+    import psutil
+    _PSUTIL_AVAILABLE = True
+except ImportError:
+    _PSUTIL_AVAILABLE = False
 
 import patchcore.backbones
 import patchcore.common
@@ -77,6 +84,8 @@ def run(
 
         with device_context:
             torch.cuda.empty_cache()
+            if "cuda" in device.type.lower():
+                torch.cuda.reset_peak_memory_stats(device)
             imagesize = dataloaders["training"].dataset.imagesize
             sampler = methods["get_sampler"](
                 device,
@@ -86,6 +95,7 @@ def run(
                 LOGGER.info(
                     "Utilizing PatchCore Ensemble (N={}).".format(len(PatchCore_list))
                 )
+            total_train_time = 0.0
             for i, PatchCore in enumerate(PatchCore_list):
                 torch.cuda.empty_cache()
                 if PatchCore.backbone.seed is not None:
@@ -94,10 +104,13 @@ def run(
                     "Training models ({}/{})".format(i + 1, len(PatchCore_list))
                 )
                 torch.cuda.empty_cache()
+                _t0 = time.time()
                 PatchCore.fit(dataloaders["training"])
+                total_train_time += time.time() - _t0
 
             torch.cuda.empty_cache()
             aggregator = {"scores": [], "segmentations": []}
+            total_predict_time = 0.0
             for i, PatchCore in enumerate(PatchCore_list):
                 torch.cuda.empty_cache()
                 LOGGER.info(
@@ -105,11 +118,22 @@ def run(
                         i + 1, len(PatchCore_list)
                     )
                 )
+                _t0 = time.time()
                 scores, segmentations, labels_gt, masks_gt = PatchCore.predict(
                     dataloaders["testing"]
                 )
+                total_predict_time += time.time() - _t0
                 aggregator["scores"].append(scores)
                 aggregator["segmentations"].append(segmentations)
+
+            num_test_images = len(dataloaders["testing"].dataset)
+            fps = num_test_images / total_predict_time if total_predict_time > 0 else float("nan")
+            if "cuda" in device.type.lower():
+                memory_mb = torch.cuda.max_memory_allocated(device) / (1024 ** 2)
+            elif _PSUTIL_AVAILABLE:
+                memory_mb = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+            else:
+                memory_mb = float("nan")
 
             scores = np.array(aggregator["scores"])
             min_scores = scores.min(axis=-1).reshape(-1, 1)
@@ -174,17 +198,22 @@ def run(
                 )
 
             LOGGER.info("Computing evaluation metrics.")
-            auroc = patchcore.metrics.compute_imagewise_retrieval_metrics(
+            image_metrics = patchcore.metrics.compute_imagewise_retrieval_metrics(
                 scores, anomaly_labels
-            )["auroc"]
+            )
+            auroc = image_metrics["auroc"]
+            instance_auprc = image_metrics["auprc"]
+            instance_f1 = image_metrics["f1"]
 
-            # Compute PRO score & PW Auroc for all images
+            # Compute PW metrics for all images
             pixel_scores = patchcore.metrics.compute_pixelwise_retrieval_metrics(
                 segmentations, masks_gt
             )
             full_pixel_auroc = pixel_scores["auroc"]
+            full_pixel_auprc = pixel_scores["auprc"]
+            full_pixel_f1 = pixel_scores["f1"]
 
-            # Compute PRO score & PW Auroc only images with anomalies
+            # Compute PW metrics only for images with anomalies
             sel_idxs = []
             for i in range(len(masks_gt)):
                 if np.sum(masks_gt[i]) > 0:
@@ -194,6 +223,8 @@ def run(
                 [masks_gt[i] for i in sel_idxs],
             )
             anomaly_pixel_auroc = pixel_scores["auroc"]
+            anomaly_pixel_auprc = pixel_scores["auprc"]
+            anomaly_pixel_f1 = pixel_scores["f1"]
 
             result_collect.append(
                 {
@@ -201,6 +232,15 @@ def run(
                     "instance_auroc": auroc,
                     "full_pixel_auroc": full_pixel_auroc,
                     "anomaly_pixel_auroc": anomaly_pixel_auroc,
+                    "instance_auprc": instance_auprc,
+                    "full_pixel_auprc": full_pixel_auprc,
+                    "anomaly_pixel_auprc": anomaly_pixel_auprc,
+                    "instance_f1": instance_f1,
+                    "full_pixel_f1": full_pixel_f1,
+                    "anomaly_pixel_f1": anomaly_pixel_f1,
+                    "train_time": total_train_time,
+                    "fps": fps,
+                    "memory_mb": memory_mb,
                 }
             )
 
