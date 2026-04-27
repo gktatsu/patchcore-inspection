@@ -1,4 +1,5 @@
 import copy
+import logging
 import os
 import pickle
 from typing import List
@@ -9,6 +10,8 @@ import numpy as np
 import scipy.ndimage as ndimage
 import torch
 import torch.nn.functional as F
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FaissNN(object):
@@ -58,7 +61,13 @@ class FaissNN(object):
             self.reset_index()
         self.search_index = self._create_index(features.shape[-1])
         self._train(self.search_index, features)
+        LOGGER.info(
+            "Building FAISS index: %d vectors (dim=%d)...",
+            features.shape[0],
+            features.shape[-1],
+        )
         self.search_index.add(features)
+        LOGGER.info("FAISS index built.")
 
     def _train(self, _index, _features):
         pass

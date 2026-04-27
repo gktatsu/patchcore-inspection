@@ -163,7 +163,7 @@ class PatchCore(torch.nn.Module):
 
         features = []
         with tqdm.tqdm(
-            input_data, desc="Computing support features...", position=1, leave=False
+            input_data, desc="Computing support features...", position=1, leave=True
         ) as data_iterator:
             for image in data_iterator:
                 if isinstance(image, dict):
@@ -173,7 +173,9 @@ class PatchCore(torch.nn.Module):
         features = np.concatenate(features, axis=0)
         features = self.featuresampler.run(features)
 
+        LOGGER.info("Fitting anomaly scorer on %d features...", len(features))
         self.anomaly_scorer.fit(detection_features=[features])
+        LOGGER.info("Anomaly scorer ready.")
 
     def predict(self, data):
         if isinstance(data, torch.utils.data.DataLoader):
