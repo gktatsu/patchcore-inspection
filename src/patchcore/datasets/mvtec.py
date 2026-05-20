@@ -1,4 +1,5 @@
 import os
+import random
 from enum import Enum
 
 import PIL
@@ -46,6 +47,8 @@ class MVTecDataset(torch.utils.data.Dataset):
         imagesize=224,
         split=DatasetSplit.TRAIN,
         train_val_split=1.0,
+        max_train_images=None,
+        seed=0,
         **kwargs,
     ):
         """
@@ -68,6 +71,8 @@ class MVTecDataset(torch.utils.data.Dataset):
         self.split = split
         self.classnames_to_use = [classname] if classname is not None else _CLASSNAMES
         self.train_val_split = train_val_split
+        self.max_train_images = max_train_images
+        self.seed = seed
 
         self.imgpaths_per_class, self.data_to_iterate = self.get_image_data()
 
@@ -163,5 +168,10 @@ class MVTecDataset(torch.utils.data.Dataset):
                     else:
                         data_tuple.append(None)
                     data_to_iterate.append(data_tuple)
+
+        if self.split == DatasetSplit.TRAIN and self.max_train_images is not None:
+            rng = random.Random(self.seed)
+            rng.shuffle(data_to_iterate)
+            data_to_iterate = data_to_iterate[: self.max_train_images]
 
         return imgpaths_per_class, data_to_iterate
