@@ -380,6 +380,7 @@ def sampler(name, percentage):
 @click.option("--resize", default=256, type=int, show_default=True)
 @click.option("--imagesize", default=224, type=int, show_default=True)
 @click.option("--augment", is_flag=True)
+@click.option("--max_train_images", type=int, default=None, show_default=True)
 def dataset(
     name,
     data_path,
@@ -390,6 +391,7 @@ def dataset(
     imagesize,
     num_workers,
     augment,
+    max_train_images,
 ):
     dataset_info = _DATASETS[name]
     dataset_library = __import__(dataset_info[0], fromlist=[dataset_info[1]])
@@ -406,6 +408,7 @@ def dataset(
                 split=dataset_library.DatasetSplit.TRAIN,
                 seed=seed,
                 augment=augment,
+                max_train_images=max_train_images,
             )
 
             test_dataset = dataset_library.__dict__[dataset_info[1]](
