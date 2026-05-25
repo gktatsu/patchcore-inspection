@@ -65,11 +65,13 @@ def save_plot(results: list, plot_path: str, n_per_round: int, percentage: float
     fig.suptitle(f"Continual Learning — PatchCore  N={n_per_round}, P={percentage}")
 
     ax = axes[0, 0]
-    ax.plot(rounds, [r["instance_auroc"] for r in results], "b-o")
+    auroc_vals = [r["instance_auroc"] for r in results]
+    ax.plot(rounds, auroc_vals, "b-o")
     ax.set_title("Instance AUROC")
     ax.set_xlabel("Round")
     ax.set_ylabel("AUROC")
-    ax.set_ylim(0, 1)
+    margin = (max(auroc_vals) - min(auroc_vals)) * 0.1 or 0.01
+    ax.set_ylim(min(auroc_vals) - margin, max(auroc_vals) + margin)
     ax.grid(True)
 
     ax = axes[0, 1]
