@@ -7,6 +7,7 @@ import os
 import sys
 import pickle
 import time
+from datetime import datetime
 
 import matplotlib
 matplotlib.use("Agg")
@@ -30,7 +31,7 @@ DATASET_PATH = os.path.join(SCRIPT_DIR, "..", "dataset")        # データセ�
 RESULTS_PATH = os.path.join(SCRIPT_DIR, "..", "results", "ContinualLearning")  # 結果・チェックポイントの保存先
 N_PER_ROUND = 1000          # 1ラウンドあたりの学習画像枚数
 PERCENTAGE = 0.01           # コアセットサンプリング率（全パッチの何割を残すか）
-N_ROUNDS = 10               # 継続学習のラウンド数
+N_ROUNDS = 24               # 継続学習のラウンド数
 MEMORY_LIMIT_MB = 32_000    # プロセスメモリの上限 (MB)。超えたら停止
 GPU = 0                     # 使用する GPU の番号
 SEED = 0                    # 乱数シード（画像シャッフル・モデル初期化の再現性）
@@ -103,7 +104,9 @@ def save_plot(results: list, plot_path: str) -> None:
 
 
 def main():
-    os.makedirs(RESULTS_PATH, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = os.path.join(RESULTS_PATH, timestamp)
+    os.makedirs(run_dir, exist_ok=True)
 
     rng = np.random.default_rng(SEED)
     torch.manual_seed(SEED)
@@ -167,8 +170,8 @@ def main():
     )
 
     results = []
-    csv_path = os.path.join(RESULTS_PATH, "results.csv")
-    plot_path = os.path.join(RESULTS_PATH, "progress.png")
+    csv_path = os.path.join(run_dir, "results.csv")
+    plot_path = os.path.join(run_dir, "progress.png")
 
     with open(csv_path, "w") as f:
         f.write("round,instance_auroc,train_time,memory_mb,memory_bank_size\n")
@@ -257,7 +260,7 @@ def main():
         )
 
         # チェックポイント保存
-        ckpt_dir = os.path.join(RESULTS_PATH, f"round_{round_idx+1:02d}")
+        ckpt_dir = os.path.join(run_dir, f"round_{round_idx+1:02d}")
         os.makedirs(ckpt_dir, exist_ok=True)
         pc.save_to_path(ckpt_dir)
         # detection_features を別途保存（継続実行のため）
@@ -276,7 +279,8 @@ def main():
         # グラフ更新（即時保存）
         save_plot(results, plot_path)
 
-    print(f"\n完了  CSV: {csv_path}  グラフ: {plot_path}")
+    print(f"\n完了  実行フォルダ: {run_dir}")
+    print(f"      CSV: {csv_path}  グラフ: {plot_path}")
 
 
 if __name__ == "__main__":
