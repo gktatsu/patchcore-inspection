@@ -18,7 +18,27 @@ GPU="${1:-1}"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
 SITE_PACKAGES="$SCRIPT_DIR/.venv/lib/python3.10/site-packages"
-PYTHON="env -u PYTHONHOME HOME=/home2/t-hori PYTHONPATH=$SCRIPT_DIR/src:$SITE_PACKAGES /usr/bin/python3.10"
+
+# Python 3.10 の実バイナリを優先順位順に探す（venv シンボリックリンクは除外）
+PYTHON310=""
+for _candidate in \
+  /usr/bin/python3.10 \
+  /opt/anaconda3/envs/tf2-2/bin/python3.10 \
+  /opt/anaconda3/envs/diffusers/bin/python3.10 \
+  /usr/local/bin/python3.10; do
+  if [ -x "$_candidate" ]; then
+    PYTHON310="$_candidate"
+    break
+  fi
+done
+
+if [ -z "$PYTHON310" ]; then
+  echo "エラー: Python 3.10 の実バイナリが見つかりません" >&2
+  exit 1
+fi
+
+echo "Python: $PYTHON310"
+PYTHON="env -u PYTHONHOME PYTHONPATH=$SCRIPT_DIR/src:$SITE_PACKAGES $PYTHON310"
 
 # ベンチマーク対象
 # IMAGE_COUNTS=(10 50 100 500 1000 2000 5000 10000 20000)
