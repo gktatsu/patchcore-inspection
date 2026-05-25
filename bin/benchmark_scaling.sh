@@ -4,7 +4,7 @@
 # 使い方:
 #   bash bin/benchmark_scaling.sh [GPU番号]
 #
-# 結果: ./results/Benchmark_Results/<log_group>/results.csv
+# 結果: ./results/Benchmark_Results/<timestamp>/<log_group>/results.csv
 #
 # 実行時間の目安（環境依存）:
 #   1条件あたり数秒〜数分。全条件（14条件）で30〜60分程度。
@@ -15,19 +15,23 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && cd .. && p
 cd "$SCRIPT_DIR"
 
 GPU="${1:-1}"
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
 SITE_PACKAGES="$SCRIPT_DIR/.venv/lib/python3.10/site-packages"
 PYTHON="env -u PYTHONHOME HOME=/home2/t-hori PYTHONPATH=$SCRIPT_DIR/src:$SITE_PACKAGES /usr/bin/python3.10"
 
 # ベンチマーク対象
-IMAGE_COUNTS=(100 500 1000 2000 5000 10000 20000)
+# IMAGE_COUNTS=(10 50 100 500 1000 2000 5000 10000 20000)
+IMAGE_COUNTS=(20000)
 PERCENTAGES=(0.1 0.01)
 
-SUMMARY_FILE="$SCRIPT_DIR/results/Benchmark_Results/summary.csv"
-mkdir -p "$(dirname "$SUMMARY_FILE")"
+RESULT_BASE="$SCRIPT_DIR/results/Benchmark_Results/$TIMESTAMP"
+SUMMARY_FILE="$RESULT_BASE/summary.csv"
+mkdir -p "$RESULT_BASE"
 echo "max_train_images,percentage,train_time,memory_mb" > "$SUMMARY_FILE"
 
-TIMEOUT_SEC=14400  # 4時間
+# TIMEOUT_SEC=14400  # 4時間
+TIMEOUT_SEC=144000
 
 for N in "${IMAGE_COUNTS[@]}"; do
   for P in "${PERCENTAGES[@]}"; do
@@ -41,7 +45,7 @@ for N in "${IMAGE_COUNTS[@]}"; do
     if timeout "$TIMEOUT_SEC" $PYTHON bin/run_patchcore.py \
       --gpu "$GPU" --seed 0 \
       --log_group "$LOG_GROUP" \
-      --log_project Benchmark_Results \
+      --log_project "Benchmark_Results/$TIMESTAMP" \
       ./results \
       patch_core -b wideresnet50 -le layer2 -le layer3 --faiss_on_gpu \
         --pretrain_embed_dimension 1024 --target_embed_dimension 1024 \
@@ -52,7 +56,7 @@ for N in "${IMAGE_COUNTS[@]}"; do
         mvtec ./dataset 2>&1; then
 
       # results.csv から train_time と memory_mb を抽出してサマリーに追記
-      RESULT_CSV=$(find "$SCRIPT_DIR/results/Benchmark_Results/$LOG_GROUP" \
+      RESULT_CSV=$(find "$RESULT_BASE/$LOG_GROUP" \
         -name "results.csv" 2>/dev/null | head -1)
       if [ -n "$RESULT_CSV" ]; then
         TRAIN_TIME=$(awk -F',' 'NR==2{print $11}' "$RESULT_CSV")
@@ -71,6 +75,7 @@ done
 
 echo "=============================="
 echo "ベンチマーク完了"
+echo "結果フォルダ: $RESULT_BASE"
 echo "サマリー: $SUMMARY_FILE"
 echo "=============================="
 cat "$SUMMARY_FILE"
