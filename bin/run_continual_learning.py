@@ -3,6 +3,7 @@
 継続学習実験: PatchCore
 各ラウンドで異なる N_PER_ROUND 枚を学習し、コアセットをマージしていく。
 """
+import argparse
 import os
 import sys
 import pickle
@@ -29,9 +30,6 @@ import patchcore.sampler
 # ---------- 設定 ----------
 DATASET_PATH = os.path.join(SCRIPT_DIR, "..", "dataset")        # データセットのルートディレクトリ
 RESULTS_PATH = os.path.join(SCRIPT_DIR, "..", "results", "ContinualLearning")  # 結果・チェックポイントの保存先
-N_PER_ROUND = 1000          # 1ラウンドあたりの学習画像枚数
-PERCENTAGE = 0.01           # コアセットサンプリング率（全パッチの何割を残すか）
-N_ROUNDS = 24               # 継続学習のラウンド数
 MEMORY_LIMIT_MB = 32_000    # プロセスメモリの上限 (MB)。超えたら停止
 GPU = 0                     # 使用する GPU の番号
 SEED = 0                    # 乱数シード（画像シャッフル・モデル初期化の再現性）
@@ -61,10 +59,10 @@ def get_memory_mb() -> float:
     return 0.0
 
 
-def save_plot(results: list, plot_path: str) -> None:
+def save_plot(results: list, plot_path: str, n_per_round: int, percentage: float) -> None:
     rounds = [r["round"] for r in results]
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-    fig.suptitle(f"Continual Learning — PatchCore  N={N_PER_ROUND}, P={PERCENTAGE}")
+    fig.suptitle(f"Continual Learning — PatchCore  N={n_per_round}, P={percentage}")
 
     ax = axes[0, 0]
     ax.plot(rounds, [r["instance_auroc"] for r in results], "b-o")
@@ -104,6 +102,19 @@ def save_plot(results: list, plot_path: str) -> None:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="PatchCore 継続学習実験")
+    parser.add_argument("--n_per_round", type=int, default=2000,
+                        help="1ラウンドあたりの学習画像枚数 (default: 2000)")
+    parser.add_argument("--percentage", type=float, default=0.10,
+                        help="コアセットサンプリング率 (default: 0.10)")
+    parser.add_argument("--n_rounds", type=int, default=10,
+                        help="継続学習のラウンド数 (default: 10)")
+    args = parser.parse_args()
+
+    N_PER_ROUND = args.n_per_round
+    PERCENTAGE = args.percentage
+    N_ROUNDS = args.n_rounds
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join(RESULTS_PATH, timestamp)
     os.makedirs(run_dir, exist_ok=True)
@@ -277,7 +288,7 @@ def main():
             )
 
         # グラフ更新（即時保存）
-        save_plot(results, plot_path)
+        save_plot(results, plot_path, N_PER_ROUND, PERCENTAGE)
 
     print(f"\n完了  実行フォルダ: {run_dir}")
     print(f"      CSV: {csv_path}  グラフ: {plot_path}")
