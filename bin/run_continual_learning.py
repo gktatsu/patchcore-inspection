@@ -26,25 +26,25 @@ import patchcore.patchcore
 import patchcore.sampler
 
 # ---------- 設定 ----------
-DATASET_PATH = os.path.join(SCRIPT_DIR, "..", "dataset")
-RESULTS_PATH = os.path.join(SCRIPT_DIR, "..", "results", "ContinualLearning")
-N_PER_ROUND = 1000
-PERCENTAGE = 0.01
-N_ROUNDS = 10
-MEMORY_LIMIT_MB = 32_000  # 超えたら停止
-GPU = 0
-SEED = 0
-RESIZE = 256
-IMAGESIZE = 224
-BACKBONE = "wideresnet50"
-LAYERS = ["layer2", "layer3"]
-PRETRAIN_DIM = 1024
-TARGET_DIM = 1024
-PATCHSIZE = 3
-N_NN = 1
-BATCH_SIZE = 8
-NUM_WORKERS = 4
-FAISS_ON_GPU = True
+DATASET_PATH = os.path.join(SCRIPT_DIR, "..", "dataset")        # データセットのルートディレクトリ
+RESULTS_PATH = os.path.join(SCRIPT_DIR, "..", "results", "ContinualLearning")  # 結果・チェックポイントの保存先
+N_PER_ROUND = 1000          # 1ラウンドあたりの学習画像枚数
+PERCENTAGE = 0.01           # コアセットサンプリング率（全パッチの何割を残すか）
+N_ROUNDS = 10               # 継続学習のラウンド数
+MEMORY_LIMIT_MB = 32_000    # プロセスメモリの上限 (MB)。超えたら停止
+GPU = 0                     # 使用する GPU の番号
+SEED = 0                    # 乱数シード（画像シャッフル・モデル初期化の再現性）
+RESIZE = 256                # 画像のリサイズ後のサイズ (px)
+IMAGESIZE = 224             # クロップ後の入力サイズ (px)
+BACKBONE = "wideresnet50"   # 特徴抽出に使う事前学習済みバックボーン名
+LAYERS = ["layer2", "layer3"]  # パッチ特徴量を取り出す中間層
+PRETRAIN_DIM = 1024         # バックボーン直後の特徴次元数（前処理後）
+TARGET_DIM = 1024           # メモリバンクに格納する最終的な特徴次元数
+PATCHSIZE = 3               # パッチサイズ（近傍パッチを集約するカーネルサイズ）
+N_NN = 1                    # 異常スコア計算に使う最近傍数
+BATCH_SIZE = 8              # 特徴抽出・推論時のバッチサイズ
+NUM_WORKERS = 4             # DataLoader の並列ワーカー数
+FAISS_ON_GPU = True         # FAISS インデックスを GPU 上に構築するか
 # --------------------------
 
 
