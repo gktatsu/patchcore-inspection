@@ -6,12 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 本リポジトリは Roth et al. (2021) "Towards Total Recall in Industrial Anomaly Detection" ([arXiv:2106.08265](https://arxiv.org/abs/2106.08265)) の PatchCore 実装です。ImageNet 事前学習済み Backbone からパッチ特徴量を抽出し、Coreset サンプリングで圧縮したメモリバンクと最近傍探索（faiss）で異常スコアを算出します。
 
+---
+
 ## Claude への作業指示
+
+### 応答とコミュニケーション
+
+- ユーザーへの応答は**日本語**で行う
+- 提案・修正案は、まず**結論を1行**で述べてから詳細を書く
+- 前提が複数あり得る／指示が曖昧な場合は、勝手に進めず**先に確認する**
+
+### 作業の進め方（ワークフロー）
+
+- タスク開始時、自明でなければ**まず作業計画を1〜数行で提示**してから着手する
+- 大きな変更は**小さなステップに分割**し、節目ごとに動作確認・コミットする
+- エラーが出た場合は、**修正案を提示してからユーザーに確認**を取る（黙って試行錯誤を続けない）
+- 既存のコードスタイル・命名・ディレクトリ構成に**合わせる**（独自流儀を持ち込まない）
 
 ### コミット規約
 
 - **最小単位**でコミットする（1コミット1変更）
 - メッセージは**日本語**で書く
+- **コミット前に必ずBashで動作確認**を行う（構文チェック / テスト / `--help` 確認）
+- 動作確認が取れたもののみコミットする（未確認のコードはコミットしない）
+- **各タスクの変更が完了し動作確認が取れたら、ユーザーの指示を待たずにコミットする（ただし `push` はしない）**
 - フォーマット：
 
 ```
@@ -20,7 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 <変更の詳細（任意、箇条書き可）>
 ```
 
-使用するprefix：
+使用する prefix：
 
 | prefix | 用途 |
 |--------|------|
@@ -35,22 +53,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `log` | ログ・デバッグ出力の変更 |
 | `git` | .gitignore・git設定の変更 |
 
-### 作業方針
+### やってはいけないこと（確認なしで実行禁止）
 
-- `./dataset/` および `/disk/data_area4/` への書き込みは**必ずユーザーに確認**する（設定で保護済み）
-- `git push` / `git reset --hard` / `git rebase` / `git merge` / `git checkout` は**必ずユーザーに確認**する
-- コード変更後は `python -m py_compile <file>` で構文チェックを行う
-- テストがある場合は変更後に `PYTHONPATH=./src python3 -m pytest -v` を実行する
-- **コミット前に必ずBashで動作確認を行う**（構文チェック or テスト実行 or --help確認）
-- 動作確認が取れたもののみコミットする（未確認のコードはコミットしない）
-- 実験の実行（`run_patchcore.py` 等）は長時間かかるため、ユーザーの明示的な指示なく自動実行しない
-- エラーが出た場合、修正案を提示してからユーザーに確認を取る
+これらは**ユーザーの明示的な確認・指示なしには絶対に実行しない**：
+
+- `.env` / 秘密鍵 / 認証情報（APIキー・トークン・パスワード）の**閲覧・出力・コミット**
+- `git push` / `git reset --hard` / `git rebase` / `git merge` / `git checkout`
+- ファイル・ディレクトリ・ブランチの**永続的な削除**
+- 保護対象ディレクトリ（`./dataset/`, `/disk/data_area4/`）への**書き込み**
+- 長時間かかる実験・学習ジョブ（`bin/run_patchcore.py`, `bin/run_patchcore_venv.sh`, `bin/load_and_evaluate_patchcore.py` 等）の**自動実行**
+- 本番環境・外部公開リソースへの破壊的操作
+
+> 上記に該当する操作が必要になったら、**何をするかを具体的に説明してから確認を求める**こと。
 
 ### 不要なことはしない
 
 - タスクに直接関係しないリファクタリングは行わない
 - 将来の拡張を見越した抽象化は行わない
-- コードにコメントを書く場合は「なぜ」が非自明な場合のみ（1行）
+- コードにコメントを書くのは「なぜ」が非自明な場合のみ（簡潔に1行）
+
+---
+
+## 議事録・ロードマップ運用
+
+毎週の MTG（個ゼミ）に関する成果物は以下の規約で配置・作成する。
+ユーザーから「今週の議事録をまとめて」「ロードマップを書いて」等の依頼があった場合、必ず下記パス・フォーマットに従う。
+
+### 配置とファイル名
+
+- **議事録**：`meeting_logs/log/YYYYMMDD.md`（会議日。ユーザーが用意 or Claude が文字起こしから作成）
+  - 文字起こし＋成果・進捗・アクションアイテムのサマリを含む
+- **週次ロードマップ／報告資料**：`meeting_logs/roadmap/roadmap_YYYYMMDD.md`（Claude が作成）
+  - 日付は **対応する MTG 開催日（議事録と同じ日付）** を用いる
+  - 直近議事録のアクションアイテム・課題を起点に作成
+  - ロードマップ冒頭に元議事録への相対リンク（`../log/YYYYMMDD.md`）を貼る
+  - 成果物パスは `meeting_logs/roadmap/assets/YYYYMMDD/` 配下を基本とする
+
+### 設計思想：ロードマップ＝報告資料
+
+「**ロードマップを埋めるだけで、そのまま週次報告資料（スライド／レポート下書き）になる**」形式にする。
+
+- 1 セクション = 1 スライド相当の粒度で構成する
+- 各タスクに **アウトプット形式を事前に枠だけ作っておく**（週中に埋めるだけで発表資料が完成する）
+  - 図：「図 T1-1：横軸 / 縦軸 / 凡例 / 保存先パス」をキャプション形式で先に書く
+  - 表：「表 T1-1：カラム名」を先に書く
+  - コード：PR or コミット URL を結果欄に書く
+  - ログ：抜粋行数を指定
+- 議事録の「アクションアイテム」「今後の目標」「フィードバック」を優先的にタスク化する。Speaker 名はそのまま担当として残す
+
+### 必須セクション（スライド単位）
+
+1. **優先度マップ**（コードブロックでツリー表示）
+2. **今週のサマリー**（30秒読み上げ用）：結論／進捗ステータス／主要トピック／次回 MTG の意思決定事項
+3. **タスク詳細**（各タスク1スライド相当）：
+   - 担当・優先度・期限 / 背景・目的 / **アウトプット形式（図表のキャプション形式で予約）** / 計画チェックリスト / 結果欄 / ステータスチェックボックス
+4. **数値サマリー横断表**（本週の主要数値を1表に集約）
+5. **今週のスケジュール案**（曜日ごとの表）
+6. **ブロッカー／未解決の設計課題**
+7. **マイルストーン表**（期日 × 状態）
+8. **週次報告ドラフト**（週末に埋めるテンプレート）：今週の成果（数値チェックリスト）／図表（パス＋1行説明）／直面した課題／次週個ゼミでの相談事項／翌週への申し送り
+
+### 更新運用
+
+- 既存ロードマップの改良依頼は、既存ファイルを**上書き更新**する（履歴は git に任せる）
+
+---
 
 ## 環境セットアップ
 
@@ -63,14 +130,21 @@ source .venv/bin/activate
 .venv/bin/python -c "import faiss; print('faiss OK, GPU support:', hasattr(faiss, 'StandardGpuResources'))"
 ```
 
-## テスト
+## 動作確認・テスト・静的チェック
+
+コミット前の「動作確認」では、最低限いずれかを実行する。
 
 ```bash
-# 全テスト
+# 構文チェック
+python -m py_compile <file>
+
+# テスト
 PYTHONPATH=./src python3 -m pytest -v
 # または
 ./local_run_test.sh
 ```
+
+---
 
 ## パイプライン全体の流れ
 
@@ -117,6 +191,8 @@ PYTHONPATH=./src .venv/bin/python bin/load_and_evaluate_patchcore.py \
 | `train_time` | 学習時間（秒） |
 | `fps` | 推論速度 |
 
+---
+
 ## コードアーキテクチャ
 
 ### `src/patchcore/`
@@ -140,7 +216,26 @@ PYTHONPATH=./src .venv/bin/python bin/load_and_evaluate_patchcore.py \
 - **`extract_rar.py`** : RAR 形式の異常データセットを解凍するスクリプト。
 - **`experiment_done_hook.py`** : 実験完了時に results.csv のサマリーを表示する PostToolUse フック（自動実行）。
 
-## データ配置
+### 設定システム
+
+- CLI は **click の chain group** 方式。`run_patchcore.py` は `patch_core` / `sampler` / `dataset` の 3 サブコマンドを **この順に連結**して 1 コマンドで指定する（順序を変えると引数解釈が壊れる）。
+- 各サブコマンドは独立した click オプション群を持つ（例：`patch_core` の `-b/-le/--patchsize`、`sampler` の `-p`、`dataset` の `--resize/--imagesize`）。
+- 既存実験設定は `sample_training.sh` / `sample_evaluation.sh` を出発点として複製・改変するのが安全。
+- ロガー類（W&B/TensorBoard）は未使用。結果は `results.csv` への追記のみ。
+
+---
+
+## ハマりどころ / 既知の落とし穴
+
+- `bin/run_patchcore.py` の click サブコマンドは **連結順固定**。`patch_core → sampler → dataset` の順を崩すと無言で別解釈されることがある。
+- `--faiss_on_gpu` は `faiss.StandardGpuResources` が存在する faiss-gpu ビルドでのみ有効。CPU 版 faiss だと実行時エラー。
+- `PYTHONPATH=./src` を付け忘れると `import patchcore` が解決されない。`bin/` 配下の直接実行時は必須。
+- 異常データは `/disk/data_area4/t-hori/2025/patchcore/anomaly_dataset/` に置かれており、ローカル `./dataset/` とは別。どちらを指しているかを混同しない。
+- 継続学習で RSS が累積する不具合はコミット `bf51aad` で対処済み（中間配列の解放）。再発時は `git show bf51aad` で経緯を確認する。
+
+---
+
+## データ / 設定ファイルの配置
 
 ```
 ./dataset/                                       ローカルの学習・評価データ（保護対象）
@@ -148,6 +243,10 @@ PYTHONPATH=./src .venv/bin/python bin/load_and_evaluate_patchcore.py \
 /disk/data_area4/t-hori/2025/patchcore/          外部ストレージのデータ（保護対象）
   anomaly_dataset/
     ground_truth/abnormal/                       異常画像のグラウンドトゥルース
+meeting_logs/
+  log/YYYYMMDD.md                                MTG 議事録
+  roadmap/roadmap_YYYYMMDD.md                    週次ロードマップ／報告資料
+  roadmap/assets/YYYYMMDD/                       ロードマップから参照する図表等の成果物
 ```
 
 MVTec AD 形式のディレクトリ構造：
@@ -159,3 +258,11 @@ MVTec AD 形式のディレクトリ構造：
   test/<欠陥名>/         異常サンプル（評価用）
   ground_truth/<欠陥名>/ マスク画像（PNG、異常ピクセルが白）
 ```
+
+---
+
+## このファイル（CLAUDE.md）の育て方
+
+- 作業中に**新しい教訓・ハマりどころ・運用ルール**が見つかったら、該当セクションに**簡潔に追記**する
+- 追記は「なぜそうするか」が非自明な場合に**理由を1行**添える
+- 肥大化したら使われていない記述を削る。**短く正確**を優先する
