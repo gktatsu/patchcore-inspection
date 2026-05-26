@@ -4,6 +4,7 @@
 各ラウンドで異なる N_PER_ROUND 枚を学習し、コアセットをマージしていく。
 """
 import argparse
+import gc
 import os
 import sys
 import pickle
@@ -234,8 +235,12 @@ def main():
             if round_idx == 0:
                 merged = new_coreset
             else:
-                old = pc.anomaly_scorer.detection_features.astype(np.float32)
+                # dtype 一致時はビューで済ませる（不要なコピーを避ける）
+                old = pc.anomaly_scorer.detection_features.astype(
+                    np.float32, copy=False
+                )
                 merged = np.concatenate([old, new_coreset], axis=0)
+                del old  # concat 直後に旧バンク参照を解放
             print(f"  マージ後バンク: {len(merged)} ベクトル")
 
             # アノマリースコアラーを再フィット
@@ -248,7 +253,7 @@ def main():
         train_time = time.time() - t0
 
         # テストセットで評価
-        scores, _, labels_gt, _ = pc.predict(test_loader)
+        scores, _segs, labels_gt, _gt_masks = pc.predict(test_loader)
         metrics_result = patchcore.metrics.compute_imagewise_retrieval_metrics(
             scores, labels_gt
         )
@@ -291,6 +296,13 @@ def main():
 
         # グラフ更新（即時保存）
         save_plot(results, plot_path, N_PER_ROUND, PERCENTAGE)
+
+        # ラウンド毎の中間配列を解放（メモリ累積防止）
+        del new_features_list, new_features, new_coreset, merged
+        del scores, _segs, labels_gt, _gt_masks, metrics_result
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     print(f"\n完了  実行フォルダ: {run_dir}")
     print(f"      CSV: {csv_path}  グラフ: {plot_path}")
